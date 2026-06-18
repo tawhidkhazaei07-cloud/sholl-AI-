@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gaming AI Chat ⚡ Razer Style</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Consolas, monospace;
+    background:black;
+    color:white;
+}
+
+/* 🎮 START SCREEN */
+#startScreen{
+    position:fixed;
+    width:100%;
+    height:100%;
+    background:radial-gradient(circle,#0f0,#000);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    gap:20px;
+}
+
+button.start{
+    padding:15px 25px;
+    border:none;
+    cursor:pointer;
+    font-size:18px;
+    border-radius:10px;
+    color:white;
+    background:linear-gradient(45deg,#00ff00,#00aa00);
+    box-shadow:0 0 20px #00ff00;
+}
+
+button.start:hover{
+    transform:scale(1.1);
+}
+
+/* 💻 MAIN UI */
+.container{
+    display:none;
+    height:100vh;
+    display:flex;
+}
+
+/* 🧠 SIDEBAR */
+.sidebar{
+    width:250px;
+    background:#0a0a0a;
+    border-right:1px solid #222;
+    padding:10px;
+}
+
+.sidebar h3{
+    color:#00ff00;
+}
+
+.chat-item{
+    padding:8px;
+    margin:5px 0;
+    background:#111;
+    border-radius:6px;
+    font-size:12px;
+}
+
+/* 💬 CHAT */
+.main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+#box{
+    flex:1;
+    padding:15px;
+    overflow:auto;
+}
+
+/* 👤 USER */
+.user{
+    display:flex;
+    justify-content:flex-end;
+    margin:8px 0;
+}
+
+.user span{
+    background:linear-gradient(45deg,#00ff00,#008800);
+    padding:10px;
+    border-radius:10px;
+    max-width:70%;
+    box-shadow:0 0 10px #00ff00;
+}
+
+/* 🤖 BOT */
+.bot{
+    margin:8px 0;
+}
+
+.bot span{
+    background:linear-gradient(45deg,#ff00ff,#5500ff);
+    padding:10px;
+    border-radius:10px;
+    max-width:70%;
+    display:inline-block;
+    box-shadow:0 0 10px #ff00ff;
+}
+
+/* ⬇ INPUT */
+.bottom{
+    display:flex;
+    padding:10px;
+    gap:10px;
+    border-top:1px solid #222;
+}
+
+input{
+    flex:1;
+    padding:12px;
+    background:#111;
+    border:none;
+    color:white;
+    border-radius:8px;
+}
+
+button{
+    width:60px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    color:white;
+    background:linear-gradient(45deg,#00ff00,#ff00ff);
+    box-shadow:0 0 10px #00ff00;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- 🎮 START SCREEN -->
+<div id="startScreen">
+    <h1>🎮 AI GAMING CHAT BOT</h1>
+    <p>Are you using:</p>
+
+    <button class="start" onclick="start('PC')">💻 PC</button>
+    <button class="start" onclick="start('Mobile')">📱 Mobile</button>
+</div>
+
+<!-- MAIN -->
+<div class="container" id="container">
+
+<!-- 🧠 MEMORY -->
+<div class="sidebar">
+    <h3>💾 Memory</h3>
+    <div id="memory"></div>
+</div>
+
+<!-- CHAT -->
+<div class="main">
+
+<div id="box"></div>
+
+<div class="bottom">
+<input id="input" placeholder="Type / speak...">
+<button onclick="voice()">🎤</button>
+<button onclick="send()">➤</button>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let box=document.getElementById("box");
+let input=document.getElementById("input");
+let memory=document.getElementById("memory");
+
+let device="";
+
+let history=[
+    {role:"system",content:"You are a gaming AI assistant."}
+];
+
+/* 🎮 START */
+function start(type){
+    device=type;
+    document.getElementById("startScreen").style.display="none";
+    document.getElementById("container").style.display="flex";
+
+    add("System: Device detected → "+type,"bot");
+}
+
+/* 💬 ADD */
+function add(text,type){
+
+let div=document.createElement("div");
+
+if(type==="user"){
+    div.className="user";
+    div.innerHTML="👤 <span>"+text+"</span>";
+}else{
+    div.className="bot";
+    div.innerHTML="🤖 <span>"+text+"</span>";
+}
+
+box.appendChild(div);
+box.scrollTop=box.scrollHeight;
+
+/* memory */
+let m=document.createElement("div");
+m.className="chat-item";
+m.innerText=text;
+memory.appendChild(m);
+
+}
+
+/* 🎤 VOICE */
+function voice(){
+    let rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+    rec.lang="en-US";
+    rec.onresult=e=>{
+        input.value=e.results[0][0].transcript;
+    };
+    rec.start();
+}
+
+/* 🔊 SPEAK */
+function speak(text){
+    let s=new SpeechSynthesisUtterance(text);
+    s.lang="en-US";
+    window.speechSynthesis.speak(s);
+}
+
+/* 💬 SEND */
+async function send(){
+
+let text=input.value;
+if(!text) return;
+
+add(text,"user");
+history.push({role:"user",content:text});
+input.value="";
+
+add("AI thinking...","bot");
+
+let res=await fetch("http://127.0.0.1:5000/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({message:text})
+});
+
+let data=await res.json();
+
+box.lastChild.remove();
+
+add(data.reply,"bot");
+speak(data.reply);
+
+history.push({role:"assistant",content:data.reply});
+}
+
+input.addEventListener("keydown",e=>{
+if(e.key==="Enter")send();
+});
+
+</script>
+
+</body>
+</html>
